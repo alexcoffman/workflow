@@ -20,6 +20,59 @@ const readFinishReason = (response: OpenAI.Responses.Response): string | null =>
   return null;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+};
+
+const readStringField = (record: Record<string, unknown> | null, field: string): string | null => {
+  if (!record) {
+    return null;
+  }
+
+  const value = record[field];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+};
+
+const readNumberField = (record: Record<string, unknown> | null, field: string): number | null => {
+  if (!record) {
+    return null;
+  }
+
+  const value = record[field];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+};
+
+const formatOpenAiError = (error: unknown): string => {
+  const root = asRecord(error);
+  const nestedError = asRecord(root?.error);
+
+  const status = readNumberField(root, 'status');
+  const code = readStringField(root, 'code') ?? readStringField(nestedError, 'code');
+  const type = readStringField(root, 'type') ?? readStringField(nestedError, 'type');
+  const message =
+    readStringField(nestedError, 'message') ??
+    readStringField(root, 'message') ??
+    (error instanceof Error ? error.message : null) ??
+    'Неизвестная ошибка OpenAI API.';
+
+  const parts: string[] = ['Ошибка OpenAI API'];
+  if (status !== null) {
+    parts.push(`HTTP ${status}`);
+  }
+  if (code) {
+    parts.push(`code=${code}`);
+  }
+  if (type) {
+    parts.push(`type=${type}`);
+  }
+
+  return `${parts.join(' | ')}: ${message}`;
+};
+
 export class OpenAIProvider implements LlmProvider {
   public readonly id = 'openai';
 
@@ -44,18 +97,19 @@ export class OpenAIProvider implements LlmProvider {
       payload.temperature = request.temperature;
     }
 
-    const response = await this.client.responses.create(
-      payload,
-      {
+    try {
+      const response = await this.client.responses.create(payload, {
         signal: request.signal
-      }
-    );
+      });
 
-    return {
-      outputText: response.output_text,
-      usage: readUsage(response.usage),
-      finishReason: readFinishReason(response),
-      rawResponse: response
-    };
+      return {
+        outputText: response.output_text,
+        usage: readUsage(response.usage),
+        finishReason: readFinishReason(response),
+        rawResponse: response
+      };
+    } catch (error) {
+      throw new Error(formatOpenAiError(error));
+    }
   }
 }
