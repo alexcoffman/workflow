@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 
 import { Toaster } from '../components/ui/toaster';
 import { ApiSettingsDialog } from '../features/api-settings/ApiSettingsDialog';
+import { AuthScreen } from '../features/auth/AuthScreen';
+import { UserSettingsDialog } from '../features/auth/UserSettingsDialog';
 import { FlowCanvas } from '../features/editor/FlowCanvas';
 import { InspectorPanel } from '../features/inspector/InspectorPanel';
 import { RunLogPanel } from '../features/logs/RunLogPanel';
@@ -13,22 +15,31 @@ import { SaveSchemaDialog } from '../features/toolbar/SaveSchemaDialog';
 import { TopToolbar } from '../features/toolbar/TopToolbar';
 import { parseAndNormalizeSchema } from '../lib/schema';
 import { readSchemaDraft } from '../lib/storage';
+import { useAuthStore } from '../stores/auth-store';
 import { useEditorStore } from '../stores/editor-store';
+import { useSettingsStore } from '../stores/settings-store';
 import { useToastStore } from '../stores/toast-store';
 
 import { useSchemaAutosave } from './use-schema-autosave';
 import { useTelegramBridge } from './use-telegram-bridge';
 
-export const App = (): JSX.Element => {
+const AuthenticatedApp = (): JSX.Element => {
   const loadSchema = useEditorStore((state) => state.loadSchema);
   const pushToast = useToastStore((state) => state.pushToast);
+  const session = useAuthStore((state) => state.session);
+  const hydrateSettings = useSettingsStore((state) => state.hydrateFromStorage);
 
   useSchemaAutosave();
   useTelegramBridge();
 
   useEffect(() => {
+    hydrateSettings();
+  }, [hydrateSettings, session?.userId]);
+
+  useEffect(() => {
     const raw = readSchemaDraft();
     if (!raw) {
+      useEditorStore.getState().clearSchema();
       return;
     }
 
@@ -43,7 +54,7 @@ export const App = (): JSX.Element => {
     }
 
     loadSchema(parsed.schema);
-  }, [loadSchema, pushToast]);
+  }, [loadSchema, pushToast, session?.userId]);
 
   return (
     <div className="h-full w-full p-3">
@@ -71,7 +82,35 @@ export const App = (): JSX.Element => {
       <SaveSchemaDialog />
       <LoadSchemaDialog />
       <PromptLibraryDialog />
+      <UserSettingsDialog />
       <Toaster />
     </div>
   );
+};
+
+export const App = (): JSX.Element => {
+  const bootstrap = useAuthStore((state) => state.bootstrap);
+  const initialized = useAuthStore((state) => state.initialized);
+  const session = useAuthStore((state) => state.session);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
+
+  if (!initialized) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Загрузка...</div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <>
+        <AuthScreen />
+        <Toaster />
+      </>
+    );
+  }
+
+  return <AuthenticatedApp />;
 };

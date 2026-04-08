@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Textarea } from '../../components/ui/textarea';
-import { LIMITS } from '../../domain/constants';
+import { APP_VERSION, LIMITS } from '../../domain/constants';
 import { supportsTemperatureParameter } from '../../domain/model-capabilities';
 import { NodeType } from '../../domain/node-types';
 import type {
@@ -791,6 +791,8 @@ export const InspectorPanel = (): JSX.Element => {
       {selectedNode.type === NodeType.OUTPUT ? <OutputNodeInspector node={selectedNode} disabled={locked} /> : null}
       {selectedNode.type === NodeType.TELEGRAM_OUTPUT ? <TelegramOutputNodeInspector node={selectedNode} disabled={locked} /> : null}
       {selectedNode.type === NodeType.NOTE ? <NoteNodeInspector node={selectedNode} disabled={locked} /> : null}
+
+      <div className="pt-4 text-left text-[10px] text-muted-foreground">v. {APP_VERSION}</div>
     </SectionPanel>
   );
 };

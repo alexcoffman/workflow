@@ -1,5 +1,18 @@
 ﻿import { useState } from 'react';
-import { BookText, Download, KeyRound, Play, Plus, Save, Square, Trash2, Upload } from 'lucide-react';
+import {
+  BookText,
+  ChevronDown,
+  Download,
+  KeyRound,
+  LogOut,
+  Play,
+  Plus,
+  Save,
+  Settings,
+  Square,
+  Trash2,
+  Upload
+} from 'lucide-react';
 
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -7,8 +20,10 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useToast } from '../../components/ui/use-toast';
 import { NodeType } from '../../domain/node-types';
+import { useAuthStore } from '../../stores/auth-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useRunStore } from '../../stores/run-store';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useUiStore } from '../../stores/ui-store';
 
 interface ToolbarNodeOption {
@@ -37,6 +52,7 @@ const TOOLBAR_DANGER_ACTION_CLASS =
 
 export const TopToolbar = (): JSX.Element => {
   const [selectedNodeType, setSelectedNodeType] = useState('');
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const metadata = useEditorStore((state) => state.metadata);
   const updateMetadata = useEditorStore((state) => state.updateMetadata);
@@ -57,6 +73,11 @@ export const TopToolbar = (): JSX.Element => {
   const setSaveSchemaDialogOpen = useUiStore((state) => state.setSaveSchemaDialogOpen);
   const setLoadSchemaDialogOpen = useUiStore((state) => state.setLoadSchemaDialogOpen);
   const setPromptLibraryDialogOpen = useUiStore((state) => state.setPromptLibraryDialogOpen);
+  const setUserSettingsDialogOpen = useUiStore((state) => state.setUserSettingsDialogOpen);
+
+  const userSession = useAuthStore((state) => state.session);
+  const signOut = useAuthStore((state) => state.signOut);
+  const resetSettings = useSettingsStore((state) => state.resetState);
 
   const { toast } = useToast();
 
@@ -94,8 +115,10 @@ export const TopToolbar = (): JSX.Element => {
             className={TOOLBAR_NEUTRAL_ACTION_CLASS}
             disabled={locked}
             onClick={() => setExportDialogOpen(true)}
+            title="Экспорт JSON"
+            aria-label="Экспорт JSON"
           >
-            <Upload className="mr-2 h-4 w-4" /> Экспорт JSON
+            <Upload className="h-4 w-4" />
           </Button>
 
           <Button
@@ -104,8 +127,10 @@ export const TopToolbar = (): JSX.Element => {
             className={TOOLBAR_NEUTRAL_ACTION_CLASS}
             disabled={locked}
             onClick={() => setImportDialogOpen(true)}
+            title="Импорт JSON"
+            aria-label="Импорт JSON"
           >
-            <Download className="mr-2 h-4 w-4" /> Импорт JSON
+            <Download className="h-4 w-4" />
           </Button>
 
           <Button
@@ -254,6 +279,46 @@ export const TopToolbar = (): JSX.Element => {
           >
             <Square className="mr-2 h-4 w-4" /> Остановить
           </Button>
+
+          <div className="relative">
+            <Button
+              variant="ghost"
+              className={TOOLBAR_NEUTRAL_ACTION_CLASS}
+              onClick={() => setIsUserMenuOpen((current) => !current)}
+            >
+              {userSession?.login ?? 'Пользователь'} <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+
+            {isUserMenuOpen ? (
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-border bg-background p-1 shadow-panel">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-secondary/60"
+                  onClick={() => {
+                    setUserSettingsDialogOpen(true);
+                    setIsUserMenuOpen(false);
+                  }}
+                >
+                  <Settings className="h-4 w-4" /> Настройки
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-rose-200 hover:bg-rose-500/20"
+                  onClick={() => {
+                    stopRun();
+                    useRunStore.getState().clearLog();
+                    useEditorStore.getState().clearSchema();
+                    resetSettings();
+                    signOut();
+                    toast({ title: 'Вы вышли из аккаунта', variant: 'default' });
+                    setIsUserMenuOpen(false);
+                  }}
+                >
+                  <LogOut className="h-4 w-4" /> Выйти
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -272,4 +337,3 @@ export const TopToolbar = (): JSX.Element => {
     </div>
   );
 };
-

@@ -4,26 +4,233 @@ import type { TelegramBotConfig, TelegramPollingOffsets } from '../domain/telegr
 import { createId } from './id';
 
 const hasWindow = (): boolean => typeof window !== 'undefined';
+const USER_SCOPE_PREFIX = 'app.user.';
 
-export const getLocalString = (key: string): string | null => {
+export interface AuthUserRecord {
+  id: string;
+  login: string;
+  loginNormalized: string;
+  passwordHash: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AuthSessionRecord {
+  userId: string;
+  login: string;
+  signedInAt: number;
+}
+
+const getRawLocalString = (key: string): string | null => {
   if (!hasWindow()) {
     return null;
   }
+
   return window.localStorage.getItem(key);
 };
 
-export const setLocalString = (key: string, value: string): void => {
+const setRawLocalString = (key: string, value: string): void => {
   if (!hasWindow()) {
     return;
   }
+
   window.localStorage.setItem(key, value);
 };
 
-export const removeLocalValue = (key: string): void => {
+const removeRawLocalValue = (key: string): void => {
   if (!hasWindow()) {
     return;
   }
+
   window.localStorage.removeItem(key);
+};
+
+const parseAuthSession = (raw: string | null): AuthSessionRecord | null => {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const candidate = parsed as Partial<AuthSessionRecord>;
+    if (
+      typeof candidate.userId !== 'string' ||
+      candidate.userId.trim().length === 0 ||
+      typeof candidate.login !== 'string' ||
+      candidate.login.trim().length === 0 ||
+      typeof candidate.signedInAt !== 'number' ||
+      !Number.isFinite(candidate.signedInAt)
+    ) {
+      return null;
+    }
+
+    return {
+      userId: candidate.userId.trim(),
+      login: candidate.login.trim(),
+      signedInAt: candidate.signedInAt
+    };
+  } catch {
+    return null;
+  }
+};
+
+const readStoredAuthSession = (): AuthSessionRecord | null => parseAuthSession(getRawLocalString(STORAGE_KEYS.AUTH_SESSION));
+
+const isGlobalKey = (key: string): boolean => {
+  return key === STORAGE_KEYS.AUTH_USERS || key === STORAGE_KEYS.AUTH_SESSION;
+};
+
+const scopedStorageKey = (key: string): string => {
+  if (isGlobalKey(key)) {
+    return key;
+  }
+
+  const session = readStoredAuthSession();
+  if (!session) {
+    return key;
+  }
+
+  return `${USER_SCOPE_PREFIX}${session.userId}.${key}`;
+};
+
+export const getLocalString = (key: string): string | null => {
+  return getRawLocalString(scopedStorageKey(key));
+};
+
+export const setLocalString = (key: string, value: string): void => {
+  setRawLocalString(scopedStorageKey(key), value);
+};
+
+export const removeLocalValue = (key: string): void => {
+  removeRawLocalValue(scopedStorageKey(key));
+};
+
+const parseAuthUsers = (raw: string | null): AuthUserRecord[] => {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const users: AuthUserRecord[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const candidate = item as Partial<AuthUserRecord>;
+      if (
+        typeof candidate.id !== 'string' ||
+        candidate.id.trim().length === 0 ||
+        typeof candidate.login !== 'string' ||
+        candidate.login.trim().length === 0 ||
+        typeof candidate.loginNormalized !== 'string' ||
+        candidate.loginNormalized.trim().length === 0 ||
+        typeof candidate.passwordHash !== 'string' ||
+        candidate.passwordHash.trim().length === 0 ||
+        typeof candidate.createdAt !== 'number' ||
+        !Number.isFinite(candidate.createdAt) ||
+        typeof candidate.updatedAt !== 'number' ||
+        !Number.isFinite(candidate.updatedAt)
+      ) {
+        continue;
+      }
+
+      users.push({
+        id: candidate.id.trim(),
+        login: candidate.login.trim(),
+        loginNormalized: candidate.loginNormalized.trim(),
+        passwordHash: candidate.passwordHash,
+        createdAt: candidate.createdAt,
+        updatedAt: candidate.updatedAt
+      });
+    }
+
+    return users;
+  } catch {
+    return [];
+  }
+};
+
+const writeAuthUsers = (users: AuthUserRecord[]): void => {
+  setRawLocalString(STORAGE_KEYS.AUTH_USERS, JSON.stringify(users));
+};
+
+const normalizeLogin = (login: string): string => login.trim().toLocaleLowerCase('ru-RU');
+
+export const readAuthUsers = (): AuthUserRecord[] => {
+  return parseAuthUsers(getRawLocalString(STORAGE_KEYS.AUTH_USERS));
+};
+
+export const createAuthUser = (login: string, passwordHash: string): AuthUserRecord => {
+  const trimmedLogin = login.trim();
+  const normalized = normalizeLogin(trimmedLogin);
+  const users = readAuthUsers();
+
+  if (users.some((user) => user.loginNormalized === normalized)) {
+    throw new Error('Пользователь с таким логином уже существует.');
+  }
+
+  const now = Date.now();
+  const user: AuthUserRecord = {
+    id: createId(),
+    login: trimmedLogin,
+    loginNormalized: normalized,
+    passwordHash,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  writeAuthUsers([user, ...users]);
+  return user;
+};
+
+export const createAuthSession = (user: AuthUserRecord): AuthSessionRecord => {
+  const session: AuthSessionRecord = {
+    userId: user.id,
+    login: user.login,
+    signedInAt: Date.now()
+  };
+
+  setRawLocalString(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+  return session;
+};
+
+export const readAuthSession = (): AuthSessionRecord | null => readStoredAuthSession();
+
+export const clearAuthSession = (): void => {
+  removeRawLocalValue(STORAGE_KEYS.AUTH_SESSION);
+};
+
+export const findAuthUserByLogin = (login: string): AuthUserRecord | null => {
+  const normalized = normalizeLogin(login);
+  const users = readAuthUsers();
+  return users.find((user) => user.loginNormalized === normalized) ?? null;
+};
+
+export const changeAuthUserPassword = (userId: string, nextPasswordHash: string): void => {
+  const users = readAuthUsers();
+  const nextUsers = users.map((user) => {
+    if (user.id !== userId) {
+      return user;
+    }
+
+    return {
+      ...user,
+      passwordHash: nextPasswordHash,
+      updatedAt: Date.now()
+    };
+  });
+
+  writeAuthUsers(nextUsers);
 };
 
 export const readApiKey = (): string => getLocalString(STORAGE_KEYS.OPENAI_API_KEY) ?? '';

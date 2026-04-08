@@ -8,6 +8,8 @@ interface SettingsState {
   apiKey: string;
   models: string[];
   telegramBots: TelegramBotConfig[];
+  hydrateFromStorage: () => void;
+  resetState: () => void;
   setApiKey: (apiKey: string) => void;
   clearApiKey: () => void;
   setModels: (models: string[]) => void;
@@ -34,18 +36,30 @@ const mergeWithDefaultModels = (models: string[]): string[] => {
   return merged;
 };
 
-const storedModels = readModelList();
-const initialModels = storedModels ? mergeWithDefaultModels(storedModels) : [...DEFAULT_MODELS];
-const initialTelegramBots = readTelegramBots();
-
-if (storedModels) {
-  writeModelList(initialModels);
-}
-
 export const useSettingsStore = create<SettingsState>((set) => ({
-  apiKey: readApiKey(),
-  models: initialModels,
-  telegramBots: initialTelegramBots,
+  apiKey: '',
+  models: [...DEFAULT_MODELS],
+  telegramBots: [],
+  hydrateFromStorage: () => {
+    const storedModels = readModelList();
+    const models = storedModels ? mergeWithDefaultModels(storedModels) : [...DEFAULT_MODELS];
+    if (storedModels) {
+      writeModelList(models);
+    }
+
+    set({
+      apiKey: readApiKey(),
+      models,
+      telegramBots: readTelegramBots()
+    });
+  },
+  resetState: () => {
+    set({
+      apiKey: '',
+      models: [...DEFAULT_MODELS],
+      telegramBots: []
+    });
+  },
   setApiKey: (apiKey) => {
     writeApiKey(apiKey);
     set({ apiKey });
