@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "name": "Sample Import",
+    "maxIterations": null,
+    "createdAt": 1712400000000,
+    "updatedAt": 1712400000000
+  },
+  "nodes": [
+    {
+      "id": "text-sample",
+      "type": "TEXT",
+      "position": { "x": 120, "y": 160 },
+      "data": {
+        "title": "Input",
+        "text": "Explain one practical use-case for workflow orchestration."
+      }
+    },
+    {
+      "id": "model-sample",
+      "type": "MODEL",
+      "position": { "x": 450, "y": 160 },
+      "data": {
+        "title": "Assistant",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "systemPrompt": "Respond in two short paragraphs.",
+        "temperature": 0.6,
+        "maxTokens": 250,
+        "showIntermediateMeta": false,
+        "requireAllInputs": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-sample-1",
+      "source": "text-sample",
+      "target": "model-sample",
+      "sourceHandle": "output",
+      "targetHandle": "input",
+      "sortOrder": 0
+    }
+  ]
+}
