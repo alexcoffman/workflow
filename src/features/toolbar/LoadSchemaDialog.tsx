@@ -95,6 +95,33 @@ export const LoadSchemaDialog = (): JSX.Element => {
 
   const selectedItem = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
 
+  const deleteItem = (item: LoadableSchemaItem): void => {
+    if (item.source === 'saved') {
+      removeSavedSchema(item.record.id);
+    }
+
+    const nextItems = buildLoadableItems().filter((next) => next.id !== item.id || item.source === 'saved');
+    setItems(nextItems);
+    setSelectedId((current) => {
+      if (current === item.id) {
+        return nextItems[0]?.id ?? '';
+      }
+      if (nextItems.some((next) => next.id === current)) {
+        return current;
+      }
+      return nextItems[0]?.id ?? '';
+    });
+
+    toast({
+      title: 'Схема удалена',
+      description:
+        item.source === 'saved'
+          ? `Удалена схема: ${item.title}.`
+          : `Схема «${item.title}» удалена из текущего списка.`,
+      variant: 'default'
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
@@ -139,40 +166,20 @@ export const LoadSchemaDialog = (): JSX.Element => {
                       <div className="text-xs text-muted-foreground">{item.description}</div>
                     </button>
 
-                    {item.source === 'saved' ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 shrink-0 p-0 text-rose-300 hover:bg-rose-500/20 hover:text-rose-100"
-                        disabled={locked}
-                        title="Удалить схему"
-                        aria-label="Удалить схему"
-                        onClick={() => {
-                          removeSavedSchema(item.record.id);
-
-                          const nextItems = buildLoadableItems();
-                          setItems(nextItems);
-                          setSelectedId((current) => {
-                            if (current === item.id) {
-                              return nextItems[0]?.id ?? '';
-                            }
-                            if (nextItems.some((next) => next.id === current)) {
-                              return current;
-                            }
-                            return nextItems[0]?.id ?? '';
-                          });
-
-                          toast({
-                            title: 'Схема удалена',
-                            description: `Удалена схема: ${item.title}.`,
-                            variant: 'default'
-                          });
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 shrink-0 p-0 text-rose-300 hover:bg-rose-500/20 hover:text-rose-100"
+                      disabled={locked}
+                      title={item.source === 'saved' ? 'Удалить схему' : 'Убрать демо-схему из списка'}
+                      aria-label={item.source === 'saved' ? 'Удалить схему' : 'Убрать демо-схему из списка'}
+                      onClick={() => {
+                        deleteItem(item);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 );
               })}
