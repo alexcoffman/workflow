@@ -1,5 +1,5 @@
-export const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
-export const APP_VERSION = '1.0.3';
+﻿export const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
+export const APP_VERSION = '1.0.4';
 
 export const CHATGPT_TEXT_MODELS = [
   'gpt-5.2-chat-latest',
@@ -60,3 +60,4 @@ export const HANDLE_IDS = {
   counterOutputIntermediate: 'counter-intermediate',
   counterOutputFinal: 'counter-final'
 } as const;
+

@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button';
@@ -16,6 +16,7 @@ import { useToast } from '../../components/ui/use-toast';
 import { DEFAULT_MODELS } from '../../domain/constants';
 import type { TelegramBotConfig } from '../../domain/telegram';
 import { createId } from '../../lib/id';
+import { useAuthStore } from '../../stores/auth-store';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useUiStore } from '../../stores/ui-store';
 
@@ -56,7 +57,10 @@ export const ApiSettingsDialog = (): JSX.Element => {
   const models = useSettingsStore((state) => state.models);
   const telegramBots = useSettingsStore((state) => state.telegramBots);
   const settingsLoading = useSettingsStore((state) => state.settingsLoading);
+  const settingsSyncedAt = useSettingsStore((state) => state.settingsSyncedAt);
   const saveApiSettings = useSettingsStore((state) => state.saveApiSettings);
+  const hydrateFromServer = useSettingsStore((state) => state.hydrateFromServer);
+  const session = useAuthStore((state) => state.session);
 
   const [draftApiKey, setDraftApiKey] = useState(apiKey);
   const [draftModels, setDraftModels] = useState(toMultiline(models));
@@ -72,6 +76,15 @@ export const ApiSettingsDialog = (): JSX.Element => {
     return maskToken(apiKey);
   }, [apiKey, hasKey]);
   const { toast } = useToast();
+  useEffect(() => {
+    if (!open || settingsLoading) {
+      return;
+    }
+
+    setDraftApiKey(apiKey);
+    setDraftModels(toMultiline(models));
+    setDraftBots(telegramBots);
+  }, [apiKey, models, open, settingsLoading, telegramBots]);
 
   return (
     <Dialog
@@ -96,6 +109,20 @@ export const ApiSettingsDialog = (): JSX.Element => {
         <div className="space-y-4">
           <div className="rounded-md border border-sky-500/35 bg-sky-500/12 p-3 text-sm text-sky-100">
             Серверное хранение включено: ключ и модели не записываются в localStorage браузера.
+          </div>
+
+          <div className="rounded-md border border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
+            <p>
+              Синхронизация с сервером:{' '}
+              {settingsSyncedAt ? (
+                <span className="text-emerald-300">успешно ({new Date(settingsSyncedAt).toLocaleString('ru-RU')})</span>
+              ) : (
+                <span className="text-amber-300">нет подтвержденной синхронизации</span>
+              )}
+            </p>
+            <p className="mt-1">
+              Сохранено сейчас: ключ {hasKey ? 'есть' : 'не задан'}, моделей {models.length}, Telegram-ботов {telegramBots.length}.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -231,6 +258,28 @@ export const ApiSettingsDialog = (): JSX.Element => {
             </Button>
             <Button
               variant="outline"
+              type="button"
+              disabled={settingsLoading || !session}
+              onClick={() => {
+                if (!session) {
+                  return;
+                }
+
+                void (async () => {
+                  await hydrateFromServer(session.token);
+                  const state = useSettingsStore.getState();
+                  toast({
+                    title: 'Настройки перечитаны с сервера',
+                    description: `Ключ: ${state.apiKey ? 'есть' : 'нет'}, моделей: ${state.models.length}, ботов: ${state.telegramBots.length}.`,
+                    variant: 'default'
+                  });
+                })();
+              }}
+            >
+              Обновить с сервера
+            </Button>
+            <Button
+              variant="outline"
               disabled={settingsLoading}
               onClick={() => {
                 void (async () => {
@@ -267,3 +316,8 @@ export const ApiSettingsDialog = (): JSX.Element => {
     </Dialog>
   );
 };
+
+
+
+
+

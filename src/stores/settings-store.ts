@@ -10,6 +10,7 @@ interface SettingsState {
   models: string[];
   telegramBots: TelegramBotConfig[];
   settingsLoading: boolean;
+  settingsSyncedAt: number | null;
   hydrateFromServer: (token: string) => Promise<void>;
   saveApiSettings: (
     apiKey: string,
@@ -45,6 +46,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   models: [...DEFAULT_MODELS],
   telegramBots: [],
   settingsLoading: false,
+  settingsSyncedAt: null,
   hydrateFromServer: async (token) => {
     set({ settingsLoading: true });
     try {
@@ -53,14 +55,16 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         apiKey: settings.apiKey,
         models: settings.models.length > 0 ? settings.models : [...DEFAULT_MODELS],
         telegramBots: normalizeBots(settings.telegramBots),
-        settingsLoading: false
+        settingsLoading: false,
+        settingsSyncedAt: Date.now()
       });
     } catch {
       set({
         apiKey: '',
         models: [...DEFAULT_MODELS],
         telegramBots: [],
-        settingsLoading: false
+        settingsLoading: false,
+        settingsSyncedAt: null
       });
     }
   },
@@ -82,7 +86,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         apiKey: saved.apiKey,
         models: saved.models.length > 0 ? saved.models : [...DEFAULT_MODELS],
         telegramBots: normalizeBots(saved.telegramBots),
-        settingsLoading: false
+        settingsLoading: false,
+        settingsSyncedAt: Date.now()
       });
 
       return { ok: true, message: 'Настройки сохранены на сервере.' };
@@ -99,10 +104,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       apiKey: '',
       models: [...DEFAULT_MODELS],
       telegramBots: [],
-      settingsLoading: false
+      settingsLoading: false,
+      settingsSyncedAt: null
     });
   },
   setTelegramBots: (bots) => {
     set({ telegramBots: normalizeBots(bots) });
   }
 }));
+
