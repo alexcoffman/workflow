@@ -233,37 +233,6 @@ export const changeAuthUserPassword = (userId: string, nextPasswordHash: string)
   writeAuthUsers(nextUsers);
 };
 
-export const readApiKey = (): string => getLocalString(STORAGE_KEYS.OPENAI_API_KEY) ?? '';
-
-export const writeApiKey = (apiKey: string): void => {
-  setLocalString(STORAGE_KEYS.OPENAI_API_KEY, apiKey);
-};
-
-export const clearApiKey = (): void => {
-  removeLocalValue(STORAGE_KEYS.OPENAI_API_KEY);
-};
-
-export const readModelList = (): string[] | null => {
-  const raw = getLocalString(STORAGE_KEYS.OPENAI_MODEL_LIST);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-    return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
-  } catch {
-    return null;
-  }
-};
-
-export const writeModelList = (models: string[]): void => {
-  setLocalString(STORAGE_KEYS.OPENAI_MODEL_LIST, JSON.stringify(models));
-};
-
 const normalizeTelegramBot = (value: unknown): TelegramBotConfig | null => {
   if (!value || typeof value !== 'object') {
     return null;

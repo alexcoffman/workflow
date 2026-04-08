@@ -1,5 +1,5 @@
 export const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 
 export const CHATGPT_TEXT_MODELS = [
   'gpt-5.2-chat-latest',
@@ -30,8 +30,6 @@ export const DEFAULT_MODELS = [...CHATGPT_TEXT_MODELS, ...OPENAI_TEXT_MODELS];
 export const STORAGE_KEYS = {
   AUTH_USERS: 'app.auth.users',
   AUTH_SESSION: 'app.auth.session',
-  OPENAI_API_KEY: 'app.openai.apiKey',
-  OPENAI_MODEL_LIST: 'app.openai.models',
   TELEGRAM_BOTS: 'app.telegram.bots',
   TELEGRAM_OFFSETS: 'app.telegram.offsets',
   ACTIVE_SCHEMA: 'app.schema.active',

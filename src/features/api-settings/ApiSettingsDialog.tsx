@@ -55,9 +55,8 @@ export const ApiSettingsDialog = (): JSX.Element => {
   const apiKey = useSettingsStore((state) => state.apiKey);
   const models = useSettingsStore((state) => state.models);
   const telegramBots = useSettingsStore((state) => state.telegramBots);
-  const setApiKey = useSettingsStore((state) => state.setApiKey);
-  const clearApiKey = useSettingsStore((state) => state.clearApiKey);
-  const setModels = useSettingsStore((state) => state.setModels);
+  const settingsLoading = useSettingsStore((state) => state.settingsLoading);
+  const saveApiSettings = useSettingsStore((state) => state.saveApiSettings);
   const setTelegramBots = useSettingsStore((state) => state.setTelegramBots);
 
   const [draftApiKey, setDraftApiKey] = useState(apiKey);
@@ -85,17 +84,13 @@ export const ApiSettingsDialog = (): JSX.Element => {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Настройки API (клиентский режим)</DialogTitle>
-          <DialogDescription>
-            В этом MVP запросы к OpenAI и Telegram выполняются напрямую из браузера. Режим подходит только для локального и
-            личного использования.
-          </DialogDescription>
+          <DialogTitle>Настройки API</DialogTitle>
+          <DialogDescription>Ключ OpenAI API и список моделей сохраняются на сервере для текущего пользователя.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-md border border-amber-500/35 bg-amber-500/12 p-3 text-sm text-amber-100">
-            Ключи хранятся в localStorage браузера. Хранение секретов на клиенте небезопасно и может привести к компрометации на
-            заражённом или публичном устройстве.
+          <div className="rounded-md border border-sky-500/35 bg-sky-500/12 p-3 text-sm text-sky-100">
+            Серверное хранение включено: ключ и модели не записываются в localStorage браузера.
           </div>
 
           <div className="space-y-2">
@@ -106,6 +101,7 @@ export const ApiSettingsDialog = (): JSX.Element => {
               value={draftApiKey}
               onChange={(event) => setDraftApiKey(event.target.value)}
               placeholder="sk-..."
+              disabled={settingsLoading}
             />
             <p className="text-xs text-muted-foreground">Статус ключа: {hasKey ? 'настроен' : 'отсутствует'}</p>
           </div>
@@ -118,10 +114,9 @@ export const ApiSettingsDialog = (): JSX.Element => {
               value={draftModels}
               onChange={(event) => setDraftModels(event.target.value)}
               placeholder="gpt-4.1-mini"
+              disabled={settingsLoading}
             />
-            <p className="text-xs text-muted-foreground">
-              Включены актуальные ChatGPT-модели (`*-chat-latest`, `chatgpt-4o-latest`) и базовые текстовые модели OpenAI.
-            </p>
+            <p className="text-xs text-muted-foreground">Список сохраняется на сервере без авто-изменений до следующего ручного редактирования.</p>
           </div>
 
           <div className="space-y-3 rounded-md border border-border bg-secondary/25 p-3">
@@ -204,28 +199,52 @@ export const ApiSettingsDialog = (): JSX.Element => {
 
           <div className="flex flex-wrap gap-2">
             <Button
+              disabled={settingsLoading}
               onClick={() => {
-                setApiKey(draftApiKey.trim());
-                setModels(parseModels(draftModels));
-                setTelegramBots(normalizeBots(draftBots));
-                toast({ title: 'Настройки API сохранены', variant: 'success' });
-                setOpen(false);
+                void (async () => {
+                  const result = await saveApiSettings(draftApiKey.trim(), parseModels(draftModels));
+                  if (!result.ok) {
+                    toast({
+                      title: 'Не удалось сохранить настройки API',
+                      description: result.message,
+                      variant: 'error'
+                    });
+                    return;
+                  }
+
+                  setTelegramBots(normalizeBots(draftBots));
+                  toast({ title: 'Настройки API сохранены', variant: 'success' });
+                  setOpen(false);
+                })();
               }}
             >
-              Сохранить настройки
+              {settingsLoading ? 'Сохранение...' : 'Сохранить настройки'}
             </Button>
             <Button
               variant="outline"
+              disabled={settingsLoading}
               onClick={() => {
-                clearApiKey();
-                setDraftApiKey('');
-                toast({ title: 'API-ключ удален', variant: 'default' });
+                void (async () => {
+                  const result = await saveApiSettings('', parseModels(draftModels));
+                  if (!result.ok) {
+                    toast({
+                      title: 'Не удалось удалить API-ключ',
+                      description: result.message,
+                      variant: 'error'
+                    });
+                    return;
+                  }
+
+                  setDraftApiKey('');
+                  toast({ title: 'API-ключ удален', variant: 'default' });
+                })();
               }}
             >
               Удалить API-ключ
             </Button>
             <Button
               variant="secondary"
+              disabled={settingsLoading}
               onClick={() => {
                 setDraftModels(toMultiline(DEFAULT_MODELS));
                 toast({ title: 'Список моделей обновлен до актуального', variant: 'default' });

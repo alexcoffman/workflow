@@ -27,14 +27,18 @@ const AuthenticatedApp = (): JSX.Element => {
   const loadSchema = useEditorStore((state) => state.loadSchema);
   const pushToast = useToastStore((state) => state.pushToast);
   const session = useAuthStore((state) => state.session);
-  const hydrateSettings = useSettingsStore((state) => state.hydrateFromStorage);
+  const hydrateSettings = useSettingsStore((state) => state.hydrateFromServer);
 
   useSchemaAutosave();
   useTelegramBridge();
 
   useEffect(() => {
-    hydrateSettings();
-  }, [hydrateSettings, session?.userId]);
+    if (!session) {
+      return;
+    }
+
+    void hydrateSettings(session.userId);
+  }, [hydrateSettings, session]);
 
   useEffect(() => {
     const raw = readSchemaDraft();
