@@ -1,5 +1,5 @@
 export const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.2';
 
 export const CHATGPT_TEXT_MODELS = [
   'gpt-5.2-chat-latest',
