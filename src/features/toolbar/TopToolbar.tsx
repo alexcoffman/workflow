@@ -82,7 +82,7 @@ export const TopToolbar = (): JSX.Element => {
   const { toast } = useToast();
 
   return (
-    <div className="space-y-2 rounded-xl border border-border bg-background/95 p-3 shadow-panel backdrop-blur-sm">
+    <div className="relative z-40 space-y-2 overflow-visible rounded-xl border border-border bg-background/95 p-3 shadow-panel backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -280,7 +280,7 @@ export const TopToolbar = (): JSX.Element => {
             <Square className="mr-2 h-4 w-4" /> Остановить
           </Button>
 
-          <div className="relative">
+          <div className="relative z-50">
             <Button
               variant="ghost"
               className={TOOLBAR_NEUTRAL_ACTION_CLASS}
@@ -290,7 +290,7 @@ export const TopToolbar = (): JSX.Element => {
             </Button>
 
             {isUserMenuOpen ? (
-              <div className="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-border bg-background p-1 shadow-panel">
+              <div className="absolute right-0 z-[120] mt-2 w-52 rounded-lg border border-border bg-background p-1 shadow-panel">
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-secondary/60"
