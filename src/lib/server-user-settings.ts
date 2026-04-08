@@ -1,6 +1,9 @@
+﻿import type { TelegramBotConfig } from '../domain/telegram';
+
 export interface ServerUserSettings {
   apiKey: string;
   models: string[];
+  telegramBots: TelegramBotConfig[];
 }
 
 const readErrorMessage = async (response: Response): Promise<string> => {
@@ -16,11 +19,45 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   return `HTTP ${response.status}`;
 };
 
-export const fetchUserSettings = async (userId: string): Promise<ServerUserSettings> => {
-  const response = await fetch(`/api/user-settings?userId=${encodeURIComponent(userId)}`, {
+const normalizeBots = (value: unknown): TelegramBotConfig[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const bots: TelegramBotConfig[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const candidate = item as Partial<TelegramBotConfig>;
+    if (
+      typeof candidate.id !== 'string' ||
+      candidate.id.trim().length === 0 ||
+      typeof candidate.name !== 'string' ||
+      candidate.name.trim().length === 0 ||
+      typeof candidate.token !== 'string' ||
+      candidate.token.trim().length === 0
+    ) {
+      continue;
+    }
+
+    bots.push({
+      id: candidate.id.trim(),
+      name: candidate.name.trim(),
+      token: candidate.token.trim()
+    });
+  }
+
+  return bots;
+};
+
+export const fetchUserSettings = async (token: string): Promise<ServerUserSettings> => {
+  const response = await fetch('/api/user-settings', {
     method: 'GET',
     headers: {
-      Accept: 'application/json'
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
     }
   });
 
@@ -35,24 +72,26 @@ export const fetchUserSettings = async (userId: string): Promise<ServerUserSetti
 
   return {
     apiKey: typeof payload.apiKey === 'string' ? payload.apiKey : '',
-    models
+    models,
+    telegramBots: normalizeBots((payload as Record<string, unknown>).telegramBots)
   };
 };
 
 export const saveUserSettings = async (
-  userId: string,
+  token: string,
   settings: ServerUserSettings
 ): Promise<ServerUserSettings> => {
   const response = await fetch('/api/user-settings', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Accept: 'application/json'
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
     },
     body: JSON.stringify({
-      userId,
       apiKey: settings.apiKey,
-      models: settings.models
+      models: settings.models,
+      telegramBots: settings.telegramBots
     })
   });
 
@@ -67,6 +106,7 @@ export const saveUserSettings = async (
 
   return {
     apiKey: typeof payload.apiKey === 'string' ? payload.apiKey : '',
-    models
+    models,
+    telegramBots: normalizeBots((payload as Record<string, unknown>).telegramBots)
   };
 };

@@ -37,7 +37,7 @@ const AuthenticatedApp = (): JSX.Element => {
       return;
     }
 
-    void hydrateSettings(session.userId);
+    void hydrateSettings(session.token);
   }, [hydrateSettings, session]);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export const App = (): JSX.Element => {
   const session = useAuthStore((state) => state.session);
 
   useEffect(() => {
-    bootstrap();
+    void bootstrap();
   }, [bootstrap]);
 
   if (!initialized) {

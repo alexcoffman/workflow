@@ -57,7 +57,6 @@ export const ApiSettingsDialog = (): JSX.Element => {
   const telegramBots = useSettingsStore((state) => state.telegramBots);
   const settingsLoading = useSettingsStore((state) => state.settingsLoading);
   const saveApiSettings = useSettingsStore((state) => state.saveApiSettings);
-  const setTelegramBots = useSettingsStore((state) => state.setTelegramBots);
 
   const [draftApiKey, setDraftApiKey] = useState(apiKey);
   const [draftModels, setDraftModels] = useState(toMultiline(models));
@@ -66,6 +65,12 @@ export const ApiSettingsDialog = (): JSX.Element => {
   const [newBotToken, setNewBotToken] = useState('');
 
   const hasKey = useMemo(() => apiKey.trim().length > 0, [apiKey]);
+  const maskedSavedKey = useMemo(() => {
+    if (!hasKey) {
+      return '';
+    }
+    return maskToken(apiKey);
+  }, [apiKey, hasKey]);
   const { toast } = useToast();
 
   return (
@@ -104,6 +109,11 @@ export const ApiSettingsDialog = (): JSX.Element => {
               disabled={settingsLoading}
             />
             <p className="text-xs text-muted-foreground">Статус ключа: {hasKey ? 'настроен' : 'отсутствует'}</p>
+            {hasKey ? (
+              <p className="text-xs text-emerald-300">Сохраненный ключ: {maskedSavedKey}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Ключ не сохранен на сервере.</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -202,7 +212,7 @@ export const ApiSettingsDialog = (): JSX.Element => {
               disabled={settingsLoading}
               onClick={() => {
                 void (async () => {
-                  const result = await saveApiSettings(draftApiKey.trim(), parseModels(draftModels));
+                  const result = await saveApiSettings(draftApiKey.trim(), parseModels(draftModels), normalizeBots(draftBots));
                   if (!result.ok) {
                     toast({
                       title: 'Не удалось сохранить настройки API',
@@ -212,8 +222,7 @@ export const ApiSettingsDialog = (): JSX.Element => {
                     return;
                   }
 
-                  setTelegramBots(normalizeBots(draftBots));
-                  toast({ title: 'Настройки API сохранены', variant: 'success' });
+                  toast({ title: 'Настройки API сохранены', description: 'Ключ, модели и Telegram-боты сохранены на сервере.', variant: 'success' });
                   setOpen(false);
                 })();
               }}
@@ -225,7 +234,7 @@ export const ApiSettingsDialog = (): JSX.Element => {
               disabled={settingsLoading}
               onClick={() => {
                 void (async () => {
-                  const result = await saveApiSettings('', parseModels(draftModels));
+                  const result = await saveApiSettings('', parseModels(draftModels), normalizeBots(draftBots));
                   if (!result.ok) {
                     toast({
                       title: 'Не удалось удалить API-ключ',

@@ -18,6 +18,7 @@ export interface AuthUserRecord {
 export interface AuthSessionRecord {
   userId: string;
   login: string;
+  token: string;
   signedInAt: number;
 }
 
@@ -62,6 +63,8 @@ const parseAuthSession = (raw: string | null): AuthSessionRecord | null => {
       candidate.userId.trim().length === 0 ||
       typeof candidate.login !== 'string' ||
       candidate.login.trim().length === 0 ||
+      typeof candidate.token !== 'string' ||
+      candidate.token.trim().length === 0 ||
       typeof candidate.signedInAt !== 'number' ||
       !Number.isFinite(candidate.signedInAt)
     ) {
@@ -71,6 +74,7 @@ const parseAuthSession = (raw: string | null): AuthSessionRecord | null => {
     return {
       userId: candidate.userId.trim(),
       login: candidate.login.trim(),
+      token: candidate.token.trim(),
       signedInAt: candidate.signedInAt
     };
   } catch {
@@ -197,11 +201,16 @@ export const createAuthSession = (user: AuthUserRecord): AuthSessionRecord => {
   const session: AuthSessionRecord = {
     userId: user.id,
     login: user.login,
+    token: createId(),
     signedInAt: Date.now()
   };
 
   setRawLocalString(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
   return session;
+};
+
+export const writeAuthSession = (session: AuthSessionRecord): void => {
+  setRawLocalString(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
 };
 
 export const readAuthSession = (): AuthSessionRecord | null => readStoredAuthSession();

@@ -309,7 +309,7 @@ export const TopToolbar = (): JSX.Element => {
                     useRunStore.getState().clearLog();
                     useEditorStore.getState().clearSchema();
                     resetSettings();
-                    signOut();
+                    void signOut();
                     toast({ title: 'Вы вышли из аккаунта', variant: 'default' });
                     setIsUserMenuOpen(false);
                   }}

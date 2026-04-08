@@ -1,24 +1,23 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 
 import { hashPassword } from '../lib/auth-crypto';
 import {
-  changeAuthUserPassword,
-  clearAuthSession,
-  createAuthSession,
-  createAuthUser,
-  findAuthUserByLogin,
-  readAuthSession,
-  type AuthSessionRecord
-} from '../lib/storage';
+  changePasswordByServer,
+  loginByServer,
+  logoutByServer,
+  registerByServer,
+  validateSessionByServer
+} from '../lib/server-auth';
+import { clearAuthSession, readAuthSession, writeAuthSession, type AuthSessionRecord } from '../lib/storage';
 
 interface AuthState {
   initialized: boolean;
   session: AuthSessionRecord | null;
-  bootstrap: () => void;
+  bootstrap: () => Promise<void>;
   register: (login: string, password: string) => Promise<{ ok: boolean; message: string }>;
   signIn: (login: string, password: string) => Promise<{ ok: boolean; message: string }>;
   changePassword: (currentPassword: string, nextPassword: string) => Promise<{ ok: boolean; message: string }>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const validateCredentials = (login: string, password: string): { ok: boolean; message: string } => {
@@ -36,11 +35,22 @@ const validateCredentials = (login: string, password: string): { ok: boolean; me
 export const useAuthStore = create<AuthState>((set, get) => ({
   initialized: false,
   session: null,
-  bootstrap: () => {
-    set({
-      initialized: true,
-      session: readAuthSession()
-    });
+  bootstrap: async () => {
+    const saved = readAuthSession();
+    if (!saved) {
+      set({ initialized: true, session: null });
+      return;
+    }
+
+    const validated = await validateSessionByServer(saved.token);
+    if (!validated) {
+      clearAuthSession();
+      set({ initialized: true, session: null });
+      return;
+    }
+
+    writeAuthSession(validated);
+    set({ initialized: true, session: validated });
   },
   register: async (login, password) => {
     const validation = validateCredentials(login, password);
@@ -48,16 +58,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return validation;
     }
 
-    const existing = findAuthUserByLogin(login);
-    if (existing) {
-      return { ok: false, message: 'Пользователь с таким логином уже существует.' };
+    try {
+      const passwordHash = await hashPassword(password);
+      const session = await registerByServer(login.trim(), passwordHash);
+      writeAuthSession(session);
+      set({ session });
+      return { ok: true, message: 'Регистрация успешна.' };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось зарегистрироваться.'
+      };
     }
-
-    const passwordHash = await hashPassword(password);
-    const user = createAuthUser(login, passwordHash);
-    const session = createAuthSession(user);
-    set({ session });
-    return { ok: true, message: 'Регистрация успешна.' };
   },
   signIn: async (login, password) => {
     const validation = validateCredentials(login, password);
@@ -65,19 +77,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return validation;
     }
 
-    const user = findAuthUserByLogin(login);
-    if (!user) {
-      return { ok: false, message: 'Пользователь не найден.' };
+    try {
+      const passwordHash = await hashPassword(password);
+      const session = await loginByServer(login.trim(), passwordHash);
+      writeAuthSession(session);
+      set({ session });
+      return { ok: true, message: 'Вход выполнен.' };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Не удалось выполнить вход.'
+      };
     }
-
-    const passwordHash = await hashPassword(password);
-    if (user.passwordHash !== passwordHash) {
-      return { ok: false, message: 'Неверный пароль.' };
-    }
-
-    const session = createAuthSession(user);
-    set({ session });
-    return { ok: true, message: 'Вход выполнен.' };
   },
   changePassword: async (currentPassword, nextPassword) => {
     const session = get().session;
@@ -89,21 +100,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { ok: false, message: 'Новый пароль должен быть не короче 6 символов.' };
     }
 
-    const user = findAuthUserByLogin(session.login);
-    if (!user) {
-      return { ok: false, message: 'Пользователь не найден.' };
-    }
-
     const currentHash = await hashPassword(currentPassword);
-    if (user.passwordHash !== currentHash) {
-      return { ok: false, message: 'Текущий пароль указан неверно.' };
+    const nextHash = await hashPassword(nextPassword);
+    return changePasswordByServer(session.token, currentHash, nextHash);
+  },
+  signOut: async () => {
+    const session = get().session;
+    if (session) {
+      await logoutByServer(session.token);
     }
 
-    const nextHash = await hashPassword(nextPassword);
-    changeAuthUserPassword(user.id, nextHash);
-    return { ok: true, message: 'Пароль обновлен.' };
-  },
-  signOut: () => {
     clearAuthSession();
     set({ session: null });
   }
